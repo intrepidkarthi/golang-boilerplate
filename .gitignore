@@ -1,0 +1,80 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+coverage.out
+
+# Dependency directories (remove the comment below to include it)
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# Generated files
+*.pb.go
+*.pb.gw.go
+internal/db/db.go
+internal/db/models.go
+internal/db/querier.go
+
+# macOS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Air - Live reload
+tmp/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Redis dump file
+dump.rdb
+
+# Kafka
+kafka-logs/
+
+# Build output
+dist/
+build/
+
+# Debug files
+debug/
+
+# Configuration files (uncomment if you want to ignore)
+# config.yaml
+# config.json
+
+# Crash log files
+crash.log

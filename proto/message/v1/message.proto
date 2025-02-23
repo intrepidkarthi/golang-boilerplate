@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package message.v1;
+option go_package = "go-boilerplate/proto/message/v1;messagepb";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service MessageService {
+  rpc CreateMessage(CreateMessageRequest) returns (MessageResponse) {}
+  rpc GetMessage(GetMessageRequest) returns (MessageResponse) {}
+  rpc UpdateMessage(UpdateMessageRequest) returns (MessageResponse) {}
+  rpc DeleteMessage(DeleteMessageRequest) returns (google.protobuf.Empty) {}
+  rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse) {}
+  rpc StreamMessages(google.protobuf.Empty) returns (stream MessageResponse) {}
+}
+
+message CreateMessageRequest {
+  string content = 1;
+}
+
+message GetMessageRequest {
+  string id = 1;
+}
+
+message UpdateMessageRequest {
+  string id = 1;
+  string content = 2;
+}
+
+message DeleteMessageRequest {
+  string id = 1;
+}
+
+message ListMessagesRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message ListMessagesResponse {
+  repeated MessageResponse messages = 1;
+  int32 total = 2;
+}
+
+message MessageResponse {
+  string id = 1;
+  string content = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
