@@ -19,6 +19,7 @@ A production-grade Go microservices boilerplate with support for gRPC, REST, Kaf
 - **Docker**: Containerization with Docker and Docker Compose
 - **Graceful Shutdown**: Proper shutdown handling
 - **Structured Logging**: Using Zap logger
+- **Type-safe SQL**: Using sqlc for compile-time SQL validation
 
 ### Development Features
 - **Hot Reload**: Live reload during development
@@ -38,7 +39,7 @@ A production-grade Go microservices boilerplate with support for gRPC, REST, Kaf
 ├── config/             # Configuration management
 ├── internal/           # Internal packages
 │   ├── cache/          # Redis cache implementation
-│   ├── database/       # Database operations
+│   ├── db/             # Database operations and sqlc generated code
 │   ├── kafka/          # Kafka producer/consumer
 │   ├── middleware/     # HTTP middleware
 │   ├── models/         # Data models
@@ -65,7 +66,106 @@ Before you begin, ensure you have the following installed:
    docker-compose --version
    ```
 
-3. **Protocol Buffers Compiler**
+3. **Infrastructure Services**
+   The following services are required and will be automatically started via Docker Compose:
+   - PostgreSQL 15+ (Database)
+   - Redis 7+ (Caching)
+   - Apache Kafka 3+ (Message Streaming)
+   - Zookeeper (Required for Kafka)
+
+   **Manual Installation (macOS)**:
+   ```bash
+   # Install PostgreSQL
+   brew install postgresql@15
+   brew services start postgresql@15
+
+   # Install Redis
+   brew install redis
+   brew services start redis
+
+   # Install Kafka (includes Zookeeper)
+   brew install kafka
+   brew services start zookeeper
+   brew services start kafka
+   ```
+
+   **Default Configurations**:
+   - PostgreSQL:
+     ```
+     Host: localhost
+     Port: 5432
+     Default Database: postgres
+     Default User: postgres
+     Default Password: postgres
+     ```
+
+   - Redis:
+     ```
+     Host: localhost
+     Port: 6379
+     No default password
+     ```
+
+   - Kafka:
+     ```
+     Bootstrap Servers: localhost:9092
+     Zookeeper: localhost:2181
+     Default Topics Created: messages
+     Replication Factor: 1
+     Number of Partitions: 3
+     ```
+
+   **Configuration Files**:
+   - PostgreSQL: ~/Library/Application Support/postgres/postgresql.conf
+   - Redis: /usr/local/etc/redis.conf
+   - Kafka: /usr/local/etc/kafka/server.properties
+   - Zookeeper: /usr/local/etc/kafka/zookeeper.properties
+
+   **Common Commands**:
+   ```bash
+   # PostgreSQL
+   psql -U postgres                    # Connect to PostgreSQL
+   createdb mydb                       # Create a database
+   dropdb mydb                         # Drop a database
+
+   # Redis
+   redis-cli                          # Connect to Redis
+   redis-cli ping                      # Test Redis connection
+   redis-cli monitor                   # Monitor Redis commands
+
+   # Kafka
+   kafka-topics --create \
+     --bootstrap-server localhost:9092 \
+     --topic my-topic \
+     --partitions 3 \
+     --replication-factor 1           # Create a Kafka topic
+
+   kafka-topics --list \
+     --bootstrap-server localhost:9092 # List topics
+
+   kafka-console-producer \
+     --bootstrap-server localhost:9092 \
+     --topic my-topic                 # Produce messages
+
+   kafka-console-consumer \
+     --bootstrap-server localhost:9092 \
+     --topic my-topic \
+     --from-beginning                 # Consume messages
+   ```
+
+   **Health Checks**:
+   ```bash
+   # PostgreSQL
+   pg_isready -h localhost -p 5432
+
+   # Redis
+   redis-cli ping
+
+   # Kafka
+   kafka-topics --bootstrap-server localhost:9092 --list
+   ```
+
+4. **Protocol Buffers Compiler**
    ```bash
    # macOS
    brew install protobuf
@@ -74,13 +174,13 @@ Before you begin, ensure you have the following installed:
    protoc --version
    ```
 
-4. **Go Protocol Buffers plugins**
+5. **Go Protocol Buffers plugins**
    ```bash
    go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
    ```
 
-5. **sqlc**
+6. **sqlc**
    ```bash
    # Install sqlc
    make sqlc-install
@@ -291,114 +391,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - [Gin Web Framework](https://github.com/gin-gonic/gin)
-- [GORM](https://gorm.io)
+- [sqlc](https://sqlc.dev)
 - [Protocol Buffers](https://developers.google.com/protocol-buffers)
 - [Kafka](https://kafka.apache.org)
 - [Redis](https://redis.io)
 
 
-```
-.
-├── api/                # API Definitions
-│   ├── grpc/          # gRPC Services
-│   └── http/          # HTTP Handlers
-├── cmd/
-│   └── server/        # Application Entry Point
-├── config/            # Configuration
-├── internal/
-│   ├── cache/         # Redis Operations
-│   ├── database/      # PostgreSQL Operations
-│   ├── kafka/         # Kafka Producer/Consumer
-│   ├── models/        # Domain Models
-│   └── service/       # Business Logic
-├── migrations/        # Database Migrations
-├── pkg/               # Shared Packages
-├── proto/             # Protocol Buffers
-└── scripts/          # Utility Scripts
-```
-
-## Prerequisites
-
-- Go 1.21+
-- Docker and Docker Compose
-- Protocol Buffers Compiler (protoc)
-- Make
-
-## Quick Start
-
-1. **Clone the Repository**
-   ```bash
-   git clone <repository-url>
-   cd go-boilerplate
-   ```
-
-2. **Set Up Environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-3. **Start Infrastructure**
-   ```bash
-   make dev-setup
-   ```
-
-## Development
-
-### Available Make Commands
-
-```bash
-# Build and Run
-make build        # Build the application
-make run          # Run the application
-
-# Protocol Buffers
-make proto        # Generate gRPC code
-
-# Testing
-make test         # Run tests
-make test-coverage # Run tests with coverage
-
-# Docker
-make docker-build # Build Docker images
-make docker-up    # Start Docker containers
-make docker-down  # Stop Docker containers
-
-# Database
-make migrate-up   # Run database migrations
-make migrate-down # Rollback migrations
-
-# Development
-make dev-setup    # Set up development environment
-```
-
-## API Examples
-
-### REST Endpoints
-
-```bash
-# Create Message
-curl -X POST http://localhost:8080/api/v1/messages \
-  -H "Content-Type: application/json" \
-  -d '{"content":"Hello, World!"}'}
-
-# Get Message
-curl http://localhost:8080/api/v1/messages/{id}
-
-# List Messages
-curl http://localhost:8080/api/v1/messages
-```
-
-### gRPC Service
-
-The gRPC service is available at `localhost:50051` with the following methods:
-- `CreateMessage`
-- `GetMessage`
-- `StreamMessages`
-
-### Kafka Events
-
-Messages are automatically published to Kafka topic `message-events` when created.
+n created.
 
 ## Infrastructure
 

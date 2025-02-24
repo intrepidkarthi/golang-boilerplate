@@ -3,24 +3,23 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go-boilerplate/config"
 	"go-boilerplate/internal/api/grpc"
 	"go-boilerplate/internal/api/http"
 	"go-boilerplate/internal/cache"
-	"go-boilerplate/internal/database"
 	"go-boilerplate/internal/kafka"
 	"go-boilerplate/internal/service"
 	pb "go-boilerplate/proto/message/v1"
 	"go.uber.org/zap"
 	grpc_middleware "google.golang.org/grpc/middleware"
 	"google.golang.org/grpc/reflection"
+	grpc_server "google.golang.org/grpc"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/gin-gonic/gin"
-	grpc_server "google.golang.org/grpc"
 )
 
 func main() {
@@ -34,11 +33,30 @@ func main() {
 		logger.Fatal("Failed to load configuration", zap.Error(err))
 	}
 
-	// Initialize database
-	db, err := database.NewPostgresDB(&cfg.Database)
+	// Initialize database connection pool
+	dbConfig, err := pgxpool.ParseConfig(fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		cfg.Database.User,
+		cfg.Database.Password,
+		cfg.Database.Host,
+		cfg.Database.Port,
+		cfg.Database.Name,
+		cfg.Database.SSLMode,
+	))
+	if err != nil {
+		logger.Fatal("Failed to parse database config", zap.Error(err))
+	}
+
+	// Set connection pool settings
+	dbConfig.MaxConns = int32(cfg.Database.MaxOpenConns)
+	dbConfig.MinConns = int32(cfg.Database.MaxIdleConns)
+
+	// Create connection pool
+	db, err := pgxpool.NewWithConfig(context.Background(), dbConfig)
 	if err != nil {
 		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}
+	defer db.Close()
 
 	// Initialize Redis cache
 	redisCache, err := cache.NewRedisCache(&cfg.Redis)

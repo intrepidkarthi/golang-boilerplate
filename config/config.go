@@ -20,12 +20,15 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	Host     string `mapstructure:"DB_HOST"`
-	Port     string `mapstructure:"DB_PORT"`
-	User     string `mapstructure:"DB_USER"`
-	Password string `mapstructure:"DB_PASSWORD"`
-	DBName   string `mapstructure:"DB_NAME"`
-	SSLMode  string `mapstructure:"DB_SSLMODE"`
+	Host            string        `mapstructure:"DB_HOST"`
+	Port            int           `mapstructure:"DB_PORT"`
+	User            string        `mapstructure:"DB_USER"`
+	Password        string        `mapstructure:"DB_PASSWORD"`
+	DBName          string        `mapstructure:"DB_NAME"`
+	SSLMode         string        `mapstructure:"DB_SSLMODE"`
+	MaxOpenConns    int           `mapstructure:"DB_MAX_OPEN_CONNS"`
+	MaxIdleConns    int           `mapstructure:"DB_MAX_IDLE_CONNS"`
+	ConnMaxLifetime time.Duration `mapstructure:"DB_CONN_MAX_LIFETIME"`
 }
 
 type RedisConfig struct {
@@ -45,10 +48,18 @@ type GRPCConfig struct {
 }
 
 func LoadConfig() (*Config, error) {
+	// Server defaults
 	viper.SetDefault("SERVER.PORT", "8080")
 	viper.SetDefault("SERVER.READ_TIMEOUT", time.Second*10)
 	viper.SetDefault("SERVER.WRITE_TIMEOUT", time.Second*10)
 	viper.SetDefault("GRPC.PORT", "50051")
+
+	// Database defaults
+	viper.SetDefault("DB_PORT", 5432)
+	viper.SetDefault("DB_MAX_OPEN_CONNS", 25)
+	viper.SetDefault("DB_MAX_IDLE_CONNS", 5)
+	viper.SetDefault("DB_CONN_MAX_LIFETIME", time.Minute*15)
+	viper.SetDefault("DB_SSLMODE", "disable")
 	
 	viper.AutomaticEnv()
 	
