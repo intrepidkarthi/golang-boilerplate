@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"github.com/spf13/viper"
 	"time"
 )
@@ -48,26 +49,80 @@ type GRPCConfig struct {
 }
 
 func LoadConfig() (*Config, error) {
+	// Enable environment variables first
+	viper.AutomaticEnv()
+
+	// Set config file
+	viper.SetConfigFile(".env")
+	viper.SetConfigType("env")
+
+	// Read config
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Printf("Warning: failed to read config file: %v\n", err)
+	}
+
 	// Server defaults
-	viper.SetDefault("SERVER.PORT", "8080")
-	viper.SetDefault("SERVER.READ_TIMEOUT", time.Second*10)
-	viper.SetDefault("SERVER.WRITE_TIMEOUT", time.Second*10)
-	viper.SetDefault("GRPC.PORT", "50051")
+	viper.SetDefault("PORT", "3000")
+	viper.SetDefault("READ_TIMEOUT", "10s")
+	viper.SetDefault("WRITE_TIMEOUT", "10s")
+	viper.SetDefault("GRPC_PORT", "50051")
 
 	// Database defaults
+	viper.SetDefault("DB_HOST", "localhost")
 	viper.SetDefault("DB_PORT", 5432)
+	viper.SetDefault("DB_USER", "postgres")
+	viper.SetDefault("DB_PASSWORD", "")
+	viper.SetDefault("DB_NAME", "postgres")
+	viper.SetDefault("DB_SSLMODE", "disable")
 	viper.SetDefault("DB_MAX_OPEN_CONNS", 25)
 	viper.SetDefault("DB_MAX_IDLE_CONNS", 5)
-	viper.SetDefault("DB_CONN_MAX_LIFETIME", time.Minute*15)
-	viper.SetDefault("DB_SSLMODE", "disable")
-	
-	viper.AutomaticEnv()
-	
-	var config Config
-	err := viper.Unmarshal(&config)
-	if err != nil {
-		return nil, err
+	viper.SetDefault("DB_CONN_MAX_LIFETIME", "15m")
+
+	// Redis defaults
+	viper.SetDefault("REDIS_HOST", "localhost")
+	viper.SetDefault("REDIS_PORT", "6379")
+	viper.SetDefault("REDIS_PASSWORD", "")
+	viper.SetDefault("REDIS_DB", 0)
+
+	// Kafka defaults
+	viper.SetDefault("KAFKA_BROKERS", []string{"localhost:9092"})
+	viper.SetDefault("KAFKA_TOPIC", "messages")
+
+	// Create config
+	config := &Config{
+		Server: ServerConfig{
+			Port:         viper.GetString("PORT"),
+			ReadTimeout:  viper.GetDuration("READ_TIMEOUT"),
+			WriteTimeout: viper.GetDuration("WRITE_TIMEOUT"),
+		},
+		Database: DatabaseConfig{
+			Host:            viper.GetString("DB_HOST"),
+			Port:            viper.GetInt("DB_PORT"),
+			User:            viper.GetString("DB_USER"),
+			Password:        viper.GetString("DB_PASSWORD"),
+			DBName:          viper.GetString("DB_NAME"),
+			SSLMode:         viper.GetString("DB_SSLMODE"),
+			MaxOpenConns:    viper.GetInt("DB_MAX_OPEN_CONNS"),
+			MaxIdleConns:    viper.GetInt("DB_MAX_IDLE_CONNS"),
+			ConnMaxLifetime: viper.GetDuration("DB_CONN_MAX_LIFETIME"),
+		},
+		Redis: RedisConfig{
+			Host:     viper.GetString("REDIS_HOST"),
+			Port:     viper.GetString("REDIS_PORT"),
+			Password: viper.GetString("REDIS_PASSWORD"),
+			DB:       viper.GetInt("REDIS_DB"),
+		},
+		Kafka: KafkaConfig{
+			Brokers: viper.GetStringSlice("KAFKA_BROKERS"),
+			Topic:   viper.GetString("KAFKA_TOPIC"),
+		},
+		GRPC: GRPCConfig{
+			Port: viper.GetString("GRPC_PORT"),
+		},
 	}
-	
-	return &config, nil
+
+	// Debug config
+	fmt.Printf("Database config: %+v\n", config.Database)
+
+	return config, nil
 }

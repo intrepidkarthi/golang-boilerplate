@@ -1,12 +1,10 @@
 package http
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"go-boilerplate/internal/middleware"
+	"github.com/labstack/echo/v4"
 	"go-boilerplate/internal/models"
 	"go-boilerplate/internal/service"
-	"gorm.io/gorm"
 	"net/http"
 )
 
@@ -29,19 +27,25 @@ func NewMessageHandler(messageService *service.MessageService) *MessageHandler {
 // @Param message body CreateMessageRequest true "Message content"
 // @Success 201 {object} models.Message
 // @Router /api/v1/messages [post]
-func (h *MessageHandler) CreateMessage(c *gin.Context) {
-	req := c.MustGet("validated").(*CreateMessageRequest)
+func (h *MessageHandler) CreateMessage(c echo.Context) error {
+	req := new(CreateMessageRequest)
+	if err := c.Bind(req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	if err := c.Validate(req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
 
 	message := &models.Message{
 		Content: req.Content,
 	}
 
-	if err := h.messageService.CreateMessage(c.Request.Context(), message); err != nil {
-		c.Error(err)
-		return
+	if err := h.messageService.CreateMessage(c.Request().Context(), message); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	c.JSON(http.StatusCreated, message)
+	return c.JSON(http.StatusCreated, message)
 }
 
 // GetMessage godoc
@@ -52,28 +56,22 @@ func (h *MessageHandler) CreateMessage(c *gin.Context) {
 // @Param id path string true "Message ID"
 // @Success 200 {object} models.Message
 // @Router /api/v1/messages/{id} [get]
-func (h *MessageHandler) GetMessage(c *gin.Context) {
+func (h *MessageHandler) GetMessage(c echo.Context) error {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.Error(&middleware.ValidationError{
-			Field:   "id",
-			Message: "invalid UUID format",
-		})
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid UUID format")
 	}
 
-	message, err := h.messageService.GetMessage(c.Request.Context(), id)
+	message, err := h.messageService.GetMessage(c.Request().Context(), id)
 	if err != nil {
-		c.Error(err)
-		return
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	if message == nil {
-		c.Error(gorm.ErrRecordNotFound)
-		return
+		return echo.NewHTTPError(http.StatusNotFound, "message not found")
 	}
 
-	c.JSON(http.StatusOK, message)
+	return c.JSON(http.StatusOK, message)
 }
 
 // ListMessages godoc
@@ -83,16 +81,31 @@ func (h *MessageHandler) GetMessage(c *gin.Context) {
 // @Produce json
 // @Success 200 {array} models.Message
 // @Router /api/v1/messages [get]
-func (h *MessageHandler) ListMessages(c *gin.Context) {
-	req := c.MustGet("validated").(*ListMessagesRequest)
+func (h *MessageHandler) ListMessages(c echo.Context) error {
+	req := &ListMessagesRequest{}
 
-	messages, total, err := h.messageService.ListMessagesPaginated(c.Request.Context(), req.Page, req.PageSize)
-	if err != nil {
-		c.Error(err)
-		return
+	if err := c.Bind(req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	// Set defaults if not provided
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.PageSize <= 0 {
+		req.PageSize = 10
+	}
+
+	if err := c.Validate(req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	messages, total, err := h.messageService.ListMessagesPaginated(c.Request().Context(), int32(req.Page), int32(req.PageSize))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
 		"messages":  messages,
 		"total":     total,
 		"page":      req.Page,
@@ -101,16 +114,16 @@ func (h *MessageHandler) ListMessages(c *gin.Context) {
 }
 
 type CreateMessageRequest struct {
-	Content string `json:"content" binding:"required" validate:"required,min=1,max=1000"`
+	Content string `json:"content" validate:"required,min=1,max=1000"`
 }
 
 type UpdateMessageRequest struct {
-	Content string `json:"content" binding:"required" validate:"required,min=1,max=1000"`
+	Content string `json:"content" validate:"required,min=1,max=1000"`
 }
 
 type ListMessagesRequest struct {
-	Page     int `form:"page,default=1" validate:"min=1"`
-	PageSize int `form:"page_size,default=10" validate:"min=1,max=100"`
+	Page     int `query:"page"`
+	PageSize int `query:"page_size"`
 }
 
 // UpdateMessage godoc
@@ -123,29 +136,31 @@ type ListMessagesRequest struct {
 // @Param message body UpdateMessageRequest true "Updated message content"
 // @Success 200 {object} models.Message
 // @Router /api/v1/messages/{id} [put]
-func (h *MessageHandler) UpdateMessage(c *gin.Context) {
+func (h *MessageHandler) UpdateMessage(c echo.Context) error {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.Error(&middleware.ValidationError{
-			Field:   "id",
-			Message: "invalid UUID format",
-		})
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid UUID format")
 	}
 
-	req := c.MustGet("validated").(*UpdateMessageRequest)
+	req := new(UpdateMessageRequest)
+	if err := c.Bind(req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	if err := c.Validate(req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
 
 	message := &models.Message{
 		ID:      id,
 		Content: req.Content,
 	}
 
-	if err := h.messageService.UpdateMessage(c.Request.Context(), message); err != nil {
-		c.Error(err)
-		return
+	if err := h.messageService.UpdateMessage(c.Request().Context(), message); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	c.JSON(http.StatusOK, message)
+	return c.JSON(http.StatusOK, message)
 }
 
 // DeleteMessage godoc
@@ -156,20 +171,15 @@ func (h *MessageHandler) UpdateMessage(c *gin.Context) {
 // @Param id path string true "Message ID"
 // @Success 204 "No Content"
 // @Router /api/v1/messages/{id} [delete]
-func (h *MessageHandler) DeleteMessage(c *gin.Context) {
+func (h *MessageHandler) DeleteMessage(c echo.Context) error {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.Error(&middleware.ValidationError{
-			Field:   "id",
-			Message: "invalid UUID format",
-		})
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid UUID format")
 	}
 
-	if err := h.messageService.DeleteMessage(c.Request.Context(), id); err != nil {
-		c.Error(err)
-		return
+	if err := h.messageService.DeleteMessage(c.Request().Context(), id); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	c.Status(http.StatusNoContent)
+	return c.NoContent(http.StatusNoContent)
 }

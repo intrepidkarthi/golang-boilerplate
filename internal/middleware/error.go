@@ -2,8 +2,8 @@ package middleware
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
+	"fmt"
+	"github.com/labstack/echo/v4"
 	"net/http"
 )
 
@@ -14,54 +14,61 @@ type AppError struct {
 	Details string `json:"details,omitempty"`
 }
 
+// NotFoundError represents a resource not found error
+type NotFoundError struct {
+	Resource string
+	ID       string
+}
+
+func (e *NotFoundError) Error() string {
+	return fmt.Sprintf("%s with ID %s not found", e.Resource, e.ID)
+}
+
 // ErrorResponse wraps the AppError for JSON response
 type ErrorResponse struct {
 	Error AppError `json:"error"`
 }
 
 // ErrorHandler middleware handles application errors and converts them to structured responses
-func ErrorHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Next()
-
-		// Only handle errors if there are any
-		if len(c.Errors) == 0 {
-			return
+func ErrorHandler(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		err := next(c)
+		if err == nil {
+			return nil
 		}
 
-		err := c.Errors.Last().Err
 		var response ErrorResponse
 
 		switch {
-		case errors.Is(err, gorm.ErrRecordNotFound):
+		case errors.Is(err, &NotFoundError{}):
 			response = ErrorResponse{
 				Error: AppError{
 					Code:    http.StatusNotFound,
-					Message: "Resource not found",
+					Message: "Not Found",
 					Details: err.Error(),
 				},
 			}
-		case errors.Is(err, &ValidationError{}):
-			validationErr := err.(*ValidationError)
+			return c.JSON(http.StatusNotFound, response)
+
+		case errors.As(err, &ValidationError{}):
 			response = ErrorResponse{
 				Error: AppError{
 					Code:    http.StatusBadRequest,
-					Message: "Validation failed",
-					Details: validationErr.Error(),
+					Message: "Validation Error",
+					Details: err.Error(),
 				},
 			}
+			return c.JSON(http.StatusBadRequest, response)
+
 		default:
-			// Log unexpected errors here
 			response = ErrorResponse{
 				Error: AppError{
 					Code:    http.StatusInternalServerError,
-					Message: "Internal server error",
-					Details: "An unexpected error occurred",
+					Message: "Internal Server Error",
+					Details: err.Error(),
 				},
 			}
+			return c.JSON(http.StatusInternalServerError, response)
 		}
-
-		c.JSON(response.Error.Code, response)
-		c.Abort()
 	}
 }

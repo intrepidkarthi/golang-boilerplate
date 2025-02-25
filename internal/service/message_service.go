@@ -8,6 +8,7 @@ import (
 	"go-boilerplate/internal/db"
 	"go-boilerplate/internal/kafka"
 	"go-boilerplate/internal/models"
+	"time"
 )
 
 type MessageService struct {
@@ -37,12 +38,12 @@ func (s *MessageService) CreateMessage(ctx context.Context, message *models.Mess
 	*message = models.Message{
 		ID:        result.ID,
 		Content:   result.Content,
-		CreatedAt: result.CreatedAt,
-		UpdatedAt: result.UpdatedAt,
+		CreatedAt: result.CreatedAt.Time,
+		UpdatedAt: result.UpdatedAt.Time,
 	}
 
 	// Cache the message
-	if err := s.cache.SetMessage(ctx, message); err != nil {
+	if err := s.cache.Set(ctx, message.ID.String(), message, 24*time.Hour); err != nil {
 		// Log error but don't fail the request
 		// TODO: Add proper logging
 	}
@@ -58,14 +59,9 @@ func (s *MessageService) CreateMessage(ctx context.Context, message *models.Mess
 
 func (s *MessageService) GetMessage(ctx context.Context, id uuid.UUID) (*models.Message, error) {
 	// Try to get from cache first
-	message, err := s.cache.GetMessage(ctx, id.String())
-	if err != nil {
-		// Log error but continue to database
-		// TODO: Add proper logging
-	}
-
-	if message != nil {
-		return message, nil
+	var message models.Message
+	if err := s.cache.Get(ctx, id.String(), &message); err == nil {
+		return &message, nil
 	}
 
 	// If not in cache, get from database
@@ -74,37 +70,38 @@ func (s *MessageService) GetMessage(ctx context.Context, id uuid.UUID) (*models.
 		return nil, err
 	}
 
-	message = &models.Message{
+	message = models.Message{
 		ID:        result.ID,
 		Content:   result.Content,
-		CreatedAt: result.CreatedAt,
-		UpdatedAt: result.UpdatedAt,
+		CreatedAt: result.CreatedAt.Time,
+		UpdatedAt: result.UpdatedAt.Time,
 	}
 
 	// Cache the message for future requests
-	if err := s.cache.SetMessage(ctx, message); err != nil {
+	if err := s.cache.Set(ctx, id.String(), &message, 24*time.Hour); err != nil {
 		// Log error but don't fail the request
 		// TODO: Add proper logging
 	}
 
-	return message, nil
+	return &message, nil
 }
 
 func (s *MessageService) UpdateMessage(ctx context.Context, message *models.Message) error {
 	// Update message in database
-	result, err := s.queries.UpdateMessage(ctx, db.UpdateMessageParams{
+	params := db.UpdateMessageParams{
 		ID:      message.ID,
 		Content: message.Content,
-	})
+	}
+	result, err := s.queries.UpdateMessage(ctx, params)
 	if err != nil {
 		return err
 	}
 
 	// Update message with latest values
-	message.UpdatedAt = result.UpdatedAt
+	message.UpdatedAt = result.UpdatedAt.Time
 
 	// Update cache
-	if err := s.cache.SetMessage(ctx, message); err != nil {
+	if err := s.cache.Set(ctx, message.ID.String(), message, 24*time.Hour); err != nil {
 		// Log error but don't fail the request
 		// TODO: Add proper logging
 	}
@@ -125,7 +122,7 @@ func (s *MessageService) DeleteMessage(ctx context.Context, id uuid.UUID) error 
 	}
 
 	// Delete from cache
-	if err := s.cache.DeleteMessage(ctx, id.String()); err != nil {
+	if err := s.cache.Del(ctx, id.String()); err != nil {
 		// Log error but don't fail the request
 		// TODO: Add proper logging
 	}
@@ -141,10 +138,11 @@ func (s *MessageService) DeleteMessage(ctx context.Context, id uuid.UUID) error 
 }
 
 func (s *MessageService) ListMessages(ctx context.Context) ([]*models.Message, error) {
-	results, err := s.queries.ListMessages(ctx, db.ListMessagesParams{
+	params := db.ListMessagesParams{
 		Limit:  100, // Default limit
 		Offset: 0,
-	})
+	}
+	results, err := s.queries.ListMessages(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -154,8 +152,8 @@ func (s *MessageService) ListMessages(ctx context.Context) ([]*models.Message, e
 		messages[i] = &models.Message{
 			ID:        result.ID,
 			Content:   result.Content,
-			CreatedAt: result.CreatedAt,
-			UpdatedAt: result.UpdatedAt,
+			CreatedAt: result.CreatedAt.Time,
+			UpdatedAt: result.UpdatedAt.Time,
 		}
 	}
 
@@ -185,8 +183,8 @@ func (s *MessageService) ListMessagesPaginated(ctx context.Context, page, pageSi
 		messages[i] = &models.Message{
 			ID:        result.ID,
 			Content:   result.Content,
-			CreatedAt: result.CreatedAt,
-			UpdatedAt: result.UpdatedAt,
+			CreatedAt: result.CreatedAt.Time,
+			UpdatedAt: result.UpdatedAt.Time,
 		}
 	}
 

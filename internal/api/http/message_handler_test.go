@@ -3,8 +3,8 @@ package http
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go-boilerplate/internal/models"
@@ -46,22 +46,19 @@ func (m *MockMessageService) ListMessages(ctx interface{}) ([]models.Message, er
 	return args.Get(0).([]models.Message), args.Error(1)
 }
 
-func setupTestRouter(mockService *MockMessageService) *gin.Engine {
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
+func setupTestRouter(mockService *MockMessageService) *echo.Echo {
+	e := echo.New()
 	
 	handler := NewMessageHandler(mockService)
-	v1 := router.Group("/api/v1")
-	{
-		messages := v1.Group("/messages")
-		messages.POST("", handler.CreateMessage)
-		messages.GET("", handler.ListMessages)
-		messages.GET("/:id", handler.GetMessage)
-		messages.PUT("/:id", handler.UpdateMessage)
-		messages.DELETE("/:id", handler.DeleteMessage)
-	}
+	v1 := e.Group("/api/v1")
+	messages := v1.Group("/messages")
+	messages.POST("", handler.CreateMessage)
+	messages.GET("", handler.ListMessages)
+	messages.GET("/:id", handler.GetMessage)
+	messages.PUT("/:id", handler.UpdateMessage)
+	messages.DELETE("/:id", handler.DeleteMessage)
 	
-	return router
+	return e
 }
 
 func TestCreateMessage(t *testing.T) {
@@ -77,11 +74,12 @@ func TestCreateMessage(t *testing.T) {
 	})).Return(nil)
 
 	body, _ := json.Marshal(CreateMessageRequest{Content: message.Content})
-	req := httptest.NewRequest("POST", "/api/v1/messages", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/messages", bytes.NewBuffer(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := router.NewContext(req, rec)
 
-	router.ServeHTTP(w, req)
+	assert.NoError(t, handler.CreateMessage(c))
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 	mockService.AssertExpectations(t)
@@ -101,10 +99,13 @@ func TestGetMessage(t *testing.T) {
 
 	mockService.On("GetMessage", mock.Anything, id).Return(message, nil)
 
-	req := httptest.NewRequest("GET", "/api/v1/messages/"+id.String(), nil)
-	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages/"+id.String(), nil)
+	rec := httptest.NewRecorder()
+	c := router.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues(id.String())
 
-	router.ServeHTTP(w, req)
+	assert.NoError(t, handler.GetMessage(c))
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
@@ -147,10 +148,13 @@ func TestDeleteMessage(t *testing.T) {
 
 	mockService.On("DeleteMessage", mock.Anything, id).Return(nil)
 
-	req := httptest.NewRequest("DELETE", "/api/v1/messages/"+id.String(), nil)
-	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/messages/"+id.String(), nil)
+	rec := httptest.NewRecorder()
+	c := router.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues(id.String())
 
-	router.ServeHTTP(w, req)
+	assert.NoError(t, handler.DeleteMessage(c))
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
 	mockService.AssertExpectations(t)
@@ -177,10 +181,11 @@ func TestListMessages(t *testing.T) {
 
 	mockService.On("ListMessages", mock.Anything).Return(messages, nil)
 
-	req := httptest.NewRequest("GET", "/api/v1/messages", nil)
-	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/messages", nil)
+	rec := httptest.NewRecorder()
+	c := router.NewContext(req, rec)
 
-	router.ServeHTTP(w, req)
+	assert.NoError(t, handler.ListMessages(c))
 
 	assert.Equal(t, http.StatusOK, w.Code)
 

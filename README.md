@@ -273,23 +273,23 @@ make clean
 
 ```bash
 # Create a message
-curl -X POST http://localhost:8080/api/v1/messages \
+curl -X POST http://localhost:3000/api/v1/messages \
   -H "Content-Type: application/json" \
-  -d '{"content":"Hello, World!"}'}
+  -d '{"content":"Hello, World!"}'
 
 # Get a message
-curl http://localhost:8080/api/v1/messages/{id}
+curl http://localhost:3000/api/v1/messages/{id}
 
 # Update a message
-curl -X PUT http://localhost:8080/api/v1/messages/{id} \
+curl -X PUT http://localhost:3000/api/v1/messages/{id} \
   -H "Content-Type: application/json" \
-  -d '{"content":"Updated content"}'}
+  -d '{"content":"Updated content"}'
 
 # Delete a message
-curl -X DELETE http://localhost:8080/api/v1/messages/{id}
+curl -X DELETE http://localhost:3000/api/v1/messages/{id}
 
 # List messages (with pagination)
-curl http://localhost:8080/api/v1/messages?page=1&page_size=10
+curl http://localhost:3000/api/v1/messages?page=1&page_size=10
 ```
 
 #### gRPC Service
@@ -355,7 +355,7 @@ The application can be configured using environment variables or a `.env` file:
 
 ```env
 # Server Configuration
-PORT=8080
+PORT=3000
 GRPC_PORT=50051
 
 # Database Configuration
@@ -377,6 +377,119 @@ KAFKA_BROKERS=localhost:9092
 KAFKA_TOPIC=message-events
 ```
 
+## 🛠 Customizing the Services
+
+### REST API Development
+
+The REST API is built using the Echo framework. Here's how to add new endpoints:
+
+1. **Create a New Handler**
+   ```go
+   // internal/api/http/your_handler.go
+   type YourHandler struct {
+       service *service.YourService
+   }
+
+   func NewYourHandler(service *service.YourService) *YourHandler {
+       return &YourHandler{service: service}
+   }
+
+   func (h *YourHandler) CreateItem(c echo.Context) error {
+       // Bind and validate request
+       req := new(CreateItemRequest)
+       if err := c.Bind(req); err != nil {
+           return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+       }
+
+       // Your handler logic
+       return c.JSON(http.StatusCreated, response)
+   }
+   ```
+
+2. **Add Routes**
+   ```go
+   // cmd/server/main.go in the router setup
+   e := echo.New()
+
+   // Middleware
+   e.Use(middleware.Logger())
+   e.Use(middleware.Recover())
+   e.Use(middleware.CORS())
+
+   // Routes
+   v1 := e.Group("/api/v1")
+   items := v1.Group("/items")
+   items.POST("", yourHandler.CreateItem)
+   items.GET("", yourHandler.ListItems)
+   items.GET("/:id", yourHandler.GetItem)
+   ```
+
+3. **Key Files to Modify**:
+   - `internal/api/http/` - Add new handlers
+   - `internal/service/` - Implement business logic
+   - `internal/db/query.sql` - Add new SQL queries
+   - `internal/models/` - Define request/response structs
+
+### gRPC Service Development
+
+1. **Define New Service**
+   ```protobuf
+   // proto/your_service/v1/your_service.proto
+   service YourService {
+       rpc CreateItem(CreateItemRequest) returns (CreateItemResponse);
+       rpc GetItem(GetItemRequest) returns (GetItemResponse);
+       rpc ListItems(ListItemsRequest) returns (stream ListItemsResponse);
+   }
+   ```
+
+2. **Generate gRPC Code**
+   ```bash
+   make proto
+   ```
+
+3. **Implement Service**
+   ```go
+   // internal/api/grpc/your_service.go
+   type YourServiceServer struct {
+       pb.UnimplementedYourServiceServer
+       service *service.YourService
+   }
+
+   func (s *YourServiceServer) CreateItem(ctx context.Context, req *pb.CreateItemRequest) (*pb.CreateItemResponse, error) {
+       // Your implementation
+   }
+   ```
+
+4. **Register Service**
+   ```go
+   // cmd/server/main.go in the gRPC server setup
+   pb.RegisterYourServiceServer(grpcServer, grpc.NewYourServiceServer(yourService))
+   ```
+
+5. **Key Files to Modify**:
+   - `proto/` - Define new services and messages
+   - `internal/api/grpc/` - Implement gRPC services
+   - `internal/service/` - Add business logic
+   - `internal/db/query.sql` - Add required SQL queries
+
+### Best Practices
+
+1. **Validation**
+   - Use `validator` tags for REST API requests
+   - Implement validation in gRPC services using interceptors
+
+2. **Error Handling**
+   - Use the provided error types in `internal/errors`
+   - Map domain errors to appropriate HTTP/gRPC status codes
+
+3. **Database Operations**
+   - Add new queries to `internal/db/query.sql`
+   - Run `make sqlc` to generate type-safe Go code
+
+4. **Testing**
+   - Add unit tests for new handlers and services
+   - Use the provided test helpers in `internal/testutil`
+
 ## 📚 Additional Documentation
 
 - [API Documentation](docs/api.md)
@@ -390,7 +503,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- [Gin Web Framework](https://github.com/gin-gonic/gin)
+- [Echo Framework](https://github.com/labstack/echo)
 - [sqlc](https://sqlc.dev)
 - [Protocol Buffers](https://developers.google.com/protocol-buffers)
 - [Kafka](https://kafka.apache.org)

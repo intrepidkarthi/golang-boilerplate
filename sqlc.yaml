@@ -1,8 +1,8 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    queries: "internal/db/query.sql"
-    schema: "migrations/000001_create_messages_table.up.sql"
+    queries: "internal/db/queries.sql"
+    schema: "db/migrations/000001_create_messages_table.up.sql"
     gen:
       go:
         package: "db"

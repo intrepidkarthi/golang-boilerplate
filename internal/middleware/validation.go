@@ -2,15 +2,22 @@ package middleware
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
+	"net/http"
 	"strings"
+
+	"github.com/go-playground/validator/v10"
+	"github.com/labstack/echo/v4"
 )
 
 var validate *validator.Validate
 
 func init() {
 	validate = validator.New()
+}
+
+// GetValidator returns the validator instance
+func GetValidator() *validator.Validate {
+	return validate
 }
 
 // ValidationError represents a validation error
@@ -23,9 +30,14 @@ func (v *ValidationError) Error() string {
 	return fmt.Sprintf("%s: %s", v.Field, v.Message)
 }
 
-// ValidateStruct validates a struct using validator tags
-func ValidateStruct(obj interface{}) error {
-	if err := validate.Struct(obj); err != nil {
+// CustomValidator is a custom validator for Echo
+type CustomValidator struct {
+	Validator *validator.Validate
+}
+
+// Validate implements echo.Validator interface
+func (cv *CustomValidator) Validate(i interface{}) error {
+	if err := cv.Validator.Struct(i); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
 			var errorMessages []string
 			for _, e := range validationErrors {
@@ -42,44 +54,20 @@ func ValidateStruct(obj interface{}) error {
 	return nil
 }
 
-// ValidationMiddleware validates request bodies against their struct definitions
-func ValidationMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if c.Request.Method == "POST" || c.Request.Method == "PUT" {
-			if c.ContentType() != "application/json" {
-				c.AbortWithStatusJSON(400, ErrorResponse{
-					Error: AppError{
-						Code:    400,
-						Message: "Invalid Content-Type",
-						Details: "Expected application/json",
-					},
-				})
-				return
+// ValidationMiddleware creates a validator middleware for Echo
+func ValidationMiddleware(e *echo.Echo) {
+	e.Validator = &CustomValidator{Validator: validate}
+
+	// Add request validator middleware
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if c.Request().Method == http.MethodPost || c.Request().Method == http.MethodPut {
+				if c.Request().Header.Get(echo.HeaderContentType) != echo.MIMEApplicationJSON {
+					return echo.NewHTTPError(http.StatusBadRequest, "Invalid Content-Type. Expected application/json")
+				}
 			}
+			return next(c)
 		}
-		c.Next()
-	}
+	})
 }
 
-// RequestValidator middleware factory for validating specific request structs
-func RequestValidator(obj interface{}) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if err := c.ShouldBindJSON(obj); err != nil {
-			c.Error(&ValidationError{
-				Field:   "request",
-				Message: err.Error(),
-			})
-			c.Abort()
-			return
-		}
-
-		if err := ValidateStruct(obj); err != nil {
-			c.Error(err)
-			c.Abort()
-			return
-		}
-
-		c.Set("validated", obj)
-		c.Next()
-	}
-}

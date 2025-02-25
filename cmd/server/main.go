@@ -3,23 +3,25 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go-boilerplate/config"
 	"go-boilerplate/internal/api/grpc"
 	"go-boilerplate/internal/api/http"
 	"go-boilerplate/internal/cache"
 	"go-boilerplate/internal/kafka"
+	"go-boilerplate/internal/middleware"
 	"go-boilerplate/internal/service"
 	pb "go-boilerplate/proto/message/v1"
-	"go.uber.org/zap"
-	grpc_middleware "google.golang.org/grpc/middleware"
-	"google.golang.org/grpc/reflection"
-	grpc_server "google.golang.org/grpc"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/labstack/echo/v4"
+	echomiddleware "github.com/labstack/echo/v4/middleware"
+	"go.uber.org/zap"
+	grpc_server "google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -34,15 +36,16 @@ func main() {
 	}
 
 	// Initialize database connection pool
-	dbConfig, err := pgxpool.ParseConfig(fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
+	connStr := fmt.Sprintf(
+		"user=%s password=%s host=%s port=%d dbname=%s sslmode=disable",
 		cfg.Database.User,
 		cfg.Database.Password,
 		cfg.Database.Host,
 		cfg.Database.Port,
-		cfg.Database.Name,
-		cfg.Database.SSLMode,
-	))
+		cfg.Database.DBName,
+	)
+	logger.Info("Database connection string", zap.String("connStr", connStr))
+	dbConfig, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
 		logger.Fatal("Failed to parse database config", zap.Error(err))
 	}
@@ -94,20 +97,29 @@ func main() {
 
 	// Start HTTP server
 	go func() {
-		router := gin.Default()
-		
+		e := echo.New()
+
+		// Set custom validator
+		e.Validator = &middleware.CustomValidator{Validator: middleware.GetValidator()}
+
+		// Middleware
+		e.Use(echomiddleware.Logger())
+		e.Use(echomiddleware.Recover())
+		e.Use(echomiddleware.CORS())
+
 		// API routes
-		v1 := router.Group("/api/v1")
+		v1 := e.Group("/api/v1")
 		{
 			messages := v1.Group("/messages")
-			{
-				messages.POST("", messageHandler.CreateMessage)
-				messages.GET("", messageHandler.ListMessages)
-				messages.GET("/:id", messageHandler.GetMessage)
-			}
+			messages.POST("", messageHandler.CreateMessage)
+			messages.GET("", messageHandler.ListMessages)
+			messages.GET("/:id", messageHandler.GetMessage)
+			messages.PUT("/:id", messageHandler.UpdateMessage)
+			messages.DELETE("/:id", messageHandler.DeleteMessage)
 		}
 
-		if err := router.Run(":" + cfg.Server.Port); err != nil {
+		// Start server
+		if err := e.Start(":" + cfg.Server.Port); err != nil {
 			errChan <- fmt.Errorf("failed to start HTTP server: %w", err)
 		}
 	}()
@@ -120,11 +132,7 @@ func main() {
 			return
 		}
 
-		server := grpc_server.NewServer(
-			grpc_server.UnaryInterceptor(
-				grpc_middleware.ChainUnaryServer(),
-			),
-		)
+		server := grpc_server.NewServer()
 
 		pb.RegisterMessageServiceServer(server, grpcServer)
 		reflection.Register(server)

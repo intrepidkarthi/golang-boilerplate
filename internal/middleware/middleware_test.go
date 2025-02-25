@@ -4,17 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
 func TestErrorHandler(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
 	tests := []struct {
 		name           string
 		error          error
@@ -23,12 +20,12 @@ func TestErrorHandler(t *testing.T) {
 	}{
 		{
 			name:           "Record Not Found Error",
-			error:          gorm.ErrRecordNotFound,
+			error:          echo.NewHTTPError(http.StatusNotFound, "record not found"),
 			expectedStatus: http.StatusNotFound,
 			expectedBody: ErrorResponse{
 				Error: AppError{
 					Code:    http.StatusNotFound,
-					Message: "Resource not found",
+					Message: "Not Found",
 					Details: "record not found",
 				},
 			},

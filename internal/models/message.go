@@ -6,19 +6,11 @@ import (
 )
 
 type Message struct {
-	ID        uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v4()"`
-	Content   string    `json:"content" gorm:"not null"`
-	CreatedAt time.Time `json:"created_at" gorm:"default:CURRENT_TIMESTAMP"`
-	UpdatedAt time.Time `json:"updated_at" gorm:"default:CURRENT_TIMESTAMP"`
+	ID        uuid.UUID  `json:"id" db:"id"`
+	Content   string     `json:"content" db:"content"`
+	CreatedAt time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at" db:"updated_at"`
+	DeletedAt *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
 }
 
-// TableName specifies the table name for the Message model
-func (Message) TableName() string {
-	return "messages"
-}
 
-// BeforeUpdate hook to update the updated_at timestamp
-func (m *Message) BeforeUpdate() error {
-	m.UpdatedAt = time.Now()
-	return nil
-}

@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/Shopify/sarama"
 	"go-boilerplate/internal/models"
 )
@@ -16,10 +17,11 @@ func NewProducer(brokers []string, topic string) (*Producer, error) {
 	config.Producer.RequiredAcks = sarama.WaitForAll
 	config.Producer.Retry.Max = 5
 	config.Producer.Return.Successes = true
+	config.Version = sarama.V2_8_0_0 // Match consumer version
 
 	producer, err := sarama.NewSyncProducer(brokers, config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create producer: %w", err)
 	}
 
 	return &Producer{

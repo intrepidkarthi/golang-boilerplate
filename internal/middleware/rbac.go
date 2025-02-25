@@ -2,29 +2,32 @@ package middleware
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
 	"go-boilerplate/internal/auth"
+	"net/http"
 )
 
-func RBAC(requiredService, requiredPermission string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		claims, exists := c.Get("jwtClaims")
-		if !exists {
-			c.AbortWithStatusJSON(401, gin.H{"error": "Unauthorized"})
-			return
-		}
-
-		hasAccess := false
-		for _, perm := range claims.(auth.Claims).Permissions {
-			if perm == fmt.Sprintf("%s:%s", requiredService, requiredPermission) {
-				hasAccess = true
-				break
+func RBAC(requiredService, requiredPermission string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			claims, ok := c.Get("jwtClaims").(auth.Claims)
+			if !ok {
+				return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
 			}
-		}
 
-		if !hasAccess {
-			c.AbortWithStatusJSON(403, gin.H{"error": "Insufficient permissions"})
+			hasAccess := false
+			for _, perm := range claims.Permissions {
+				if perm == fmt.Sprintf("%s:%s", requiredService, requiredPermission) {
+					hasAccess = true
+					break
+				}
+			}
+
+			if !hasAccess {
+				return echo.NewHTTPError(http.StatusForbidden, "Insufficient permissions")
+			}
+
+			return next(c)
 		}
-		c.Next()
 	}
 }

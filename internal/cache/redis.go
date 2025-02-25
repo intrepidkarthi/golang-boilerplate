@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"go-boilerplate/config"
-	"go-boilerplate/internal/models"
 	"time"
 )
 
@@ -32,30 +31,31 @@ func NewRedisCache(cfg *config.RedisConfig) (*RedisCache, error) {
 	return &RedisCache{client: client}, nil
 }
 
-func (c *RedisCache) SetMessage(ctx context.Context, message *models.Message) error {
-	data, err := json.Marshal(message)
+func (c *RedisCache) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	data, err := json.Marshal(value)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal value: %w", err)
 	}
 
-	key := fmt.Sprintf("message:%s", message.ID.String())
-	return c.client.Set(ctx, key, data, 24*time.Hour).Err()
+	return c.client.Set(ctx, key, data, expiration).Err()
 }
 
-func (c *RedisCache) GetMessage(ctx context.Context, id string) (*models.Message, error) {
-	key := fmt.Sprintf("message:%s", id)
+func (c *RedisCache) Get(ctx context.Context, key string, dest interface{}) error {
 	data, err := c.client.Get(ctx, key).Bytes()
 	if err != nil {
 		if err == redis.Nil {
-			return nil, nil
+			return fmt.Errorf("key not found: %s", key)
 		}
-		return nil, err
+		return err
 	}
 
-	var message models.Message
-	if err := json.Unmarshal(data, &message); err != nil {
-		return nil, err
+	if err := json.Unmarshal(data, dest); err != nil {
+		return fmt.Errorf("failed to unmarshal value: %w", err)
 	}
 
-	return &message, nil
+	return nil
+}
+
+func (c *RedisCache) Del(ctx context.Context, key string) error {
+	return c.client.Del(ctx, key).Err()
 }
