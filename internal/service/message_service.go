@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-boilerplate/internal/cache"
@@ -160,7 +161,7 @@ func (s *MessageService) ListMessages(ctx context.Context) ([]*models.Message, e
 	return messages, nil
 }
 
-func (s *MessageService) ListMessagesPaginated(ctx context.Context, page, pageSize int32) ([]*models.Message, int64, error) {
+func (s *MessageService) ListMessagesPaginated(ctx context.Context, page, pageSize uint32) ([]*models.Message, int64, error) {
 	// Get total count
 	total, err := s.queries.GetTotalMessages(ctx)
 	if err != nil {
@@ -169,9 +170,15 @@ func (s *MessageService) ListMessagesPaginated(ctx context.Context, page, pageSi
 
 	// Get paginated messages
 	offset := (page - 1) * pageSize
+	
+	// Safely convert uint32 to int32
+	if pageSize > uint32(1<<31-1) || offset > uint32(1<<31-1) {
+		return nil, 0, fmt.Errorf("pagination values too large")
+	}
+	
 	results, err := s.queries.ListMessages(ctx, db.ListMessagesParams{
-		Limit:  pageSize,
-		Offset: offset,
+		Limit:  int32(pageSize),
+		Offset: int32(offset),
 	})
 	if err != nil {
 		return nil, 0, err

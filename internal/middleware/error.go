@@ -1,3 +1,28 @@
+// Package middleware provides HTTP middleware components for the application.
+//
+// The error middleware implements centralized error handling for the HTTP server.
+// It catches all errors thrown during request processing and converts them into
+// appropriate HTTP responses with consistent error formatting.
+//
+// Key features:
+// - Centralized error handling
+// - Custom error types support
+// - Consistent error response format
+// - HTTP status code mapping
+// - Detailed error logging
+//
+// Error Response Format:
+//  {
+//      "error": {
+//          "code": "INVALID_REQUEST",
+//          "message": "Invalid request parameters",
+//          "details": {...}
+//      }
+//  }
+//
+// Usage:
+//  e := echo.New()
+//  e.Use(middleware.ErrorHandler())
 package middleware
 
 import (

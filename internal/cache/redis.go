@@ -56,6 +56,11 @@ func (c *RedisCache) Get(ctx context.Context, key string, dest interface{}) erro
 	return nil
 }
 
+// Client returns the underlying Redis client
+func (c *RedisCache) Client() *redis.Client {
+	return c.client
+}
+
 func (c *RedisCache) Del(ctx context.Context, key string) error {
 	return c.client.Del(ctx, key).Err()
 }

@@ -1,3 +1,34 @@
+// Package auth provides authentication and authorization functionality.
+//
+// The JWT package implements JSON Web Token (JWT) based authentication.
+// It handles token generation, validation, and management for secure
+// user authentication in the application.
+//
+// Key features:
+// - JWT token generation and validation
+// - Token refresh mechanism
+// - Claims management
+// - Token blacklisting
+// - Configurable token expiration
+//
+// Token Structure:
+//  {
+//      "sub": "user_id",
+//      "exp": 1516239022,
+//      "iat": 1516239022,
+//      "roles": ["user", "admin"],
+//      "permissions": ["read", "write"]
+//  }
+//
+// Usage:
+//  token, err := auth.GenerateToken(userID, roles)
+//  claims, err := auth.ValidateToken(tokenString)
+//
+// Security Considerations:
+// - Uses HS256 algorithm for signing
+// - Implements token expiration
+// - Supports token revocation
+// - Securely handles sensitive data
 package auth
 
 import (

@@ -1,0 +1,83 @@
+linters:
+  enable:
+    - gosec        # Security-focused linter
+    - govet        # Reports suspicious constructs
+    - errcheck     # Checks for unchecked errors
+    - staticcheck  # Advanced static analysis
+    - revive       # Drop-in replacement for golint
+    - bodyclose    # Checks whether HTTP response bodies are closed
+    - nilerr       # Checks for returning nil instead of error
+    - gocritic     # Checks for various code anti-patterns
+    - gosec        # Inspects source code for security problems
+    - cyclop       # Checks function complexity
+    - dupl         # Code clone detection
+    - gocognit     # Computes and checks cognitive complexity
+    - misspell     # Finds commonly misspelled words
+    - prealloc     # Finds slice declarations that could be preallocated
+    - unconvert    # Remove unnecessary type conversions
+    - unparam      # Reports unused function parameters
+
+linters-settings:
+  gosec:
+    # Exclude generated files
+    exclude-generated: true
+    # Available rules: https://securego.io/docs/rules/rule-intro.html
+    includes:
+      - G101  # Look for hard coded credentials
+      - G102  # Bind to all interfaces
+      - G103  # Audit the use of unsafe block
+      - G104  # Audit errors not checked
+      - G106  # Audit the use of ssh.InsecureIgnoreHostKey
+      - G107  # Url provided to HTTP request as taint input
+      - G108  # Profiling endpoint automatically exposed
+      - G109  # Potential Integer overflow made by strconv.Atoi result conversion to int16/32
+      - G110  # Potential DoS vulnerability via decompression bomb
+      - G201  # SQL query construction using format string
+      - G202  # SQL query construction using string concatenation
+      - G203  # Use of unescaped data in HTML templates
+      - G204  # Audit use of command execution
+      - G301  # Poor file permissions used when creating a directory
+      - G302  # Poor file permissions used when creation of file
+      - G303  # Creating tempfile using a predictable path
+      - G304  # File path provided as taint input
+      - G305  # File traversal when extracting zip archive
+      - G306  # Poor file permissions used when writing to a file
+      - G307  # Deferring a method which returns an error
+      - G401  # Detect the usage of weak cryptographic primitives
+      - G402  # Look for bad TLS connection settings
+      - G403  # Ensure minimum RSA key length of 2048 bits
+      - G404  # Insecure random number source (rand)
+      - G501  # Import blocklist: crypto/md5
+      - G502  # Import blocklist: crypto/sha1
+      - G503  # Import blocklist: crypto/rc4
+      - G504  # Import blocklist: net/http/cgi
+      - G505  # Import blocklist: crypto/des
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+      - experimental
+      - opinionated
+
+run:
+  timeout: 5m
+  skip-dirs:
+    - vendor
+    - third_party
+    - testdata
+    - examples
+    - docs
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec  # Security checks on tests are less important
+
+# Output configuration options
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true

@@ -1,3 +1,31 @@
+// Package main is the entry point for the message service application.
+//
+// This service implements a modern microservice architecture with support for
+// multiple protocols and data stores. It serves as a boilerplate for building
+// scalable and maintainable microservices in Go.
+//
+// Architecture Overview:
+// - HTTP Server: RESTful API using Echo framework
+// - gRPC Server: High-performance RPC using Protocol Buffers
+// - Database: PostgreSQL with sqlc for type-safe queries
+// - Cache: Redis for performance optimization
+// - Message Queue: Kafka for event-driven architecture
+// - Documentation: Swagger/OpenAPI specification
+//
+// Key Components:
+// - Request validation and error handling
+// - Middleware for security, logging, and metrics
+// - Graceful shutdown handling
+// - Configuration management
+// - Structured logging
+//
+// Environment Variables:
+// - HTTP_PORT: Port for HTTP server (default: 3000)
+// - GRPC_PORT: Port for gRPC server (default: 50051)
+// - DB_URL: PostgreSQL connection string
+// - REDIS_URL: Redis connection string
+// - KAFKA_BROKERS: Comma-separated list of Kafka brokers
+//
 // @title Message Service API
 // @version 1.0
 // @description This is a RESTful API for managing messages
@@ -58,9 +86,20 @@ func main() {
 		logger.Fatal("Failed to parse database config", zap.Error(err))
 	}
 
-	// Set connection pool settings
-	dbConfig.MaxConns = int32(cfg.Database.MaxOpenConns)
-	dbConfig.MinConns = int32(cfg.Database.MaxIdleConns)
+	// Set connection pool settings with safe defaults
+	if cfg.Database.MaxOpenConns <= 0 {
+		logger.Warn("invalid max open connections, using default", zap.Int32("max_open_conns", cfg.Database.MaxOpenConns))
+		dbConfig.MaxConns = 10 // safe default
+	} else {
+		dbConfig.MaxConns = cfg.Database.MaxOpenConns
+	}
+
+	if cfg.Database.MaxIdleConns <= 0 {
+		logger.Warn("invalid max idle connections, using default", zap.Int32("max_idle_conns", cfg.Database.MaxIdleConns))
+		dbConfig.MinConns = 2 // safe default
+	} else {
+		dbConfig.MinConns = cfg.Database.MaxIdleConns
+	}
 
 	// Create connection pool
 	db, err := pgxpool.NewWithConfig(context.Background(), dbConfig)
@@ -117,6 +156,12 @@ func main() {
 
 		// Swagger docs
 		e.GET("/swagger/*", echoSwagger.WrapHandler)
+
+		// Health check endpoints
+		healthHandler := http.NewHealthHandler(db, redisCache)
+		e.GET("/health", healthHandler.Health)
+		e.GET("/health/live", healthHandler.LivenessProbe)
+		e.GET("/health/ready", healthHandler.ReadinessProbe)
 
 		// API routes
 		v1 := e.Group("/api/v1")

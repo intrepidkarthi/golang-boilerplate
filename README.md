@@ -10,6 +10,7 @@ A production-grade Go microservices boilerplate with support for gRPC, REST, Kaf
 - **Caching**: Redis for improved performance
 - **Message Streaming**: Kafka for event-driven architecture
 - **API Documentation**: Swagger/OpenAPI documentation
+- **Health Monitoring**: Comprehensive health check endpoints
 
 ### Technical Features
 - **Validation**: Request validation using go-playground/validator
@@ -20,6 +21,7 @@ A production-grade Go microservices boilerplate with support for gRPC, REST, Kaf
 - **Graceful Shutdown**: Proper shutdown handling
 - **Structured Logging**: Using Zap logger
 - **Type-safe SQL**: Using sqlc for compile-time SQL validation
+- **Security Scanning**: Automated security checks with gosec and golangci-lint
 
 ### Development Features
 - **Hot Reload**: Live reload during development
@@ -48,6 +50,210 @@ A production-grade Go microservices boilerplate with support for gRPC, REST, Kaf
 ├── proto/              # Protocol buffer definitions
 └── scripts/           # Utility scripts
 ```
+
+## 🔒 Security and Code Quality
+
+The project includes comprehensive security scanning and code quality tools:
+
+### Security Scanning with Gosec
+
+Gosec is specifically designed to scan Go code for security vulnerabilities:
+
+```bash
+# Install Gosec
+go install github.com/securego/gosec/v2/cmd/gosec@latest
+
+# Run Gosec
+~/go/bin/gosec -quiet ./...
+```
+
+Key security checks include:
+- Buffer overflow vulnerabilities
+- Integer overflow risks
+- SQL injection vulnerabilities
+- Command injection risks
+- Cryptographic weakness
+- Hardcoded credentials
+- Insecure file operations
+
+### Code Quality with GolangCI-Lint
+
+GolangCI-Lint provides comprehensive static code analysis:
+
+```bash
+# Install GolangCI-Lint
+curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+
+# Run GolangCI-Lint
+~/go/bin/golangci-lint run --timeout=5m
+```
+
+Lint checks include:
+- Code style and formatting
+- Potential bugs and errors
+- Performance issues
+- Code complexity
+- Security anti-patterns
+- Best practices violations
+
+### Continuous Integration
+
+Both security scanning and linting are integrated into the CI pipeline:
+
+```bash
+# Run all checks
+make check
+
+# Run security checks only
+make security
+
+# Run lint checks only
+make lint
+```
+
+### Configuration
+
+- Security rules: `.gosec.config.json`
+- Linting rules: `.golangci.yml`
+- CI configuration: `.github/workflows/security.yml`
+
+Customize these files to adjust severity levels, exclude patterns, or add custom rules.
+
+## 🚀 Running the Application
+
+### Prerequisites
+
+1. **Go 1.21 or later**
+2. **PostgreSQL**
+3. **Redis**
+4. **Kafka**
+
+### Local Development
+
+1. **Build the application**:
+```bash
+go build -o bin/server ./cmd/server
+```
+
+2. **Set up environment variables**:
+Create a `.env` file in the root directory with the following content:
+```env
+# Server Configuration
+PORT=8080
+READ_TIMEOUT=5s
+WRITE_TIMEOUT=10s
+
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=postgres
+DB_SSLMODE=disable
+DB_MAX_OPEN_CONNS=10
+DB_MAX_IDLE_CONNS=5
+DB_CONN_MAX_LIFETIME=1h
+
+# Redis Configuration
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+
+# Kafka Configuration
+KAFKA_BROKERS=localhost:9092
+KAFKA_TOPIC=messages
+
+# gRPC Configuration
+GRPC_PORT=50051
+```
+
+3. **Start required services** (if using Docker):
+```bash
+docker-compose up -d postgres redis kafka
+```
+
+4. **Run the application**:
+```bash
+./bin/server
+```
+
+### Available Endpoints
+
+- **HTTP API**: `http://localhost:8080`
+  - Health Check: `GET /health`
+  - Messages API: `GET /api/v1/messages`
+
+- **gRPC**: `localhost:50051`
+
+### Monitoring
+
+- **Health Check**: `http://localhost:8080/health`
+- **Metrics**: `http://localhost:8080/metrics`
+
+## 🏥 Health Monitoring
+
+The service includes comprehensive health check endpoints for monitoring and operational readiness:
+
+### Health Check Endpoints
+
+1. **Main Health Check**
+   ```bash
+   curl http://localhost:3000/health
+   ```
+   Returns detailed health status of the service and its dependencies:
+   ```json
+   {
+       "status": "ok",
+       "timestamp": "2025-02-25T16:55:21+05:30",
+       "version": "1.0.0",
+       "services": {
+           "database": {
+               "status": "up"
+           },
+           "cache": {
+               "status": "up"
+           }
+       }
+   }
+   ```
+
+2. **Kubernetes Liveness Probe**
+   ```bash
+   curl http://localhost:3000/health/live
+   ```
+   Quick check to verify if the service is running:
+   ```json
+   {
+       "status": "alive"
+   }
+   ```
+
+3. **Kubernetes Readiness Probe**
+   ```bash
+   curl http://localhost:3000/health/ready
+   ```
+   Verifies if the service is ready to handle requests:
+   ```json
+   {
+       "status": "ready"
+   }
+   ```
+
+### Health Check Features
+- Real-time dependency status monitoring
+- Kubernetes-compatible health probes
+- Detailed service status reporting
+- Timestamp and version information
+- Individual component health status
+
+### Integration with Monitoring
+The health endpoints can be integrated with:
+- Kubernetes health checks
+- Load balancer health monitoring
+- Prometheus metrics collection
+- Custom monitoring solutions
+- CI/CD pipeline checks
 
 ## 📚 API Documentation with Swagger
 

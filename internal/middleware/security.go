@@ -1,3 +1,28 @@
+// Package middleware provides HTTP middleware components for the application.
+//
+// The security middleware implements various security measures for the HTTP server.
+// It includes headers and configurations to protect against common web vulnerabilities
+// and follows security best practices.
+//
+// Key features:
+// - CORS (Cross-Origin Resource Sharing) configuration
+// - Security headers (X-Frame-Options, X-XSS-Protection, etc.)
+// - Content Security Policy (CSP)
+// - HSTS (HTTP Strict Transport Security)
+// - Rate limiting
+// - Request size limiting
+//
+// Security Headers Set:
+// - X-Frame-Options: DENY
+// - X-Content-Type-Options: nosniff
+// - X-XSS-Protection: 1; mode=block
+// - Strict-Transport-Security: max-age=31536000; includeSubDomains
+// - Content-Security-Policy: default-src 'self'
+//
+// Usage:
+//  e := echo.New()
+//  e.Use(middleware.SecurityHeaders())
+//  e.Use(middleware.RateLimiter())
 package middleware
 
 import (

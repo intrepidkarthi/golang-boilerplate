@@ -1,3 +1,31 @@
+// Package middleware provides HTTP middleware components for the application.
+//
+// The RBAC (Role-Based Access Control) middleware implements authorization
+// for the HTTP server. It manages user roles and permissions, controlling
+// access to various endpoints based on the user's assigned roles.
+//
+// Key features:
+// - Role-based authorization
+// - Permission management
+// - Resource-level access control
+// - Role hierarchy support
+// - Dynamic permission checking
+//
+// Supported Roles:
+// - ADMIN: Full system access
+// - MANAGER: Department-level access
+// - USER: Basic access rights
+//
+// Example Permission Structure:
+//  {
+//      "users": ["read", "write"],
+//      "reports": ["read"],
+//      "settings": ["read", "write", "delete"]
+//  }
+//
+// Usage:
+//  e := echo.New()
+//  e.Use(middleware.RBACMiddleware())
 package middleware
 
 import (

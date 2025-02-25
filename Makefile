@@ -1,4 +1,21 @@
-.PHONY: build run test proto clean docker-up docker-down migrate-up migrate-down sqlc-install sqlc-generate sqlc-verify
+.PHONY: build run test proto clean docker-up docker-down migrate-up migrate-down sqlc-install sqlc-generate sqlc-verify check security lint install-tools
+
+# Code quality and security commands
+check: security lint
+
+security:
+	@echo "Running security checks..."
+	@~/go/bin/gosec -quiet ./...
+
+lint:
+	@echo "Running linter..."
+	@~/go/bin/golangci-lint run --timeout=5m
+
+# Install development tools
+install-tools:
+	@echo "Installing development tools..."
+	@go install github.com/securego/gosec/v2/cmd/gosec@latest
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
 
 # Build commands
 build:

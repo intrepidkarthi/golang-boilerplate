@@ -1,3 +1,25 @@
+// Package middleware provides HTTP middleware components for the application.
+//
+// The validation middleware package implements request validation using go-playground/validator.
+// It provides a custom validator that can be used with Echo framework to validate
+// incoming HTTP requests against struct tags.
+//
+// Key features:
+// - Custom validator implementation for Echo framework
+// - Support for struct field validation using tags
+// - Extensible validation rules
+// - Integration with go-playground/validator
+//
+// Usage:
+//  e := echo.New()
+//  e.Validator = middleware.NewCustomValidator()
+//
+// Example struct with validation tags:
+//  type CreateUserRequest struct {
+//      Name  string `json:"name" validate:"required,min=2"`
+//      Email string `json:"email" validate:"required,email"`
+//      Age   int    `json:"age" validate:"required,gte=18"`
+//  }
 package middleware
 
 import (

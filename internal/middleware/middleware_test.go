@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/labstack/echo/v4"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/labstack/echo/v4"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestErrorHandler(t *testing.T) {
@@ -61,21 +62,21 @@ func TestErrorHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router := gin.New()
-			router.Use(ErrorHandler())
+			e := echo.New()
+			e.Use(ErrorHandler())
 
-			router.GET("/test", func(c *gin.Context) {
-				c.Error(tt.error)
+			e.GET("/test", func(c echo.Context) error {
+				return tt.error
 			})
 
-			w := httptest.NewRecorder()
-			req := httptest.NewRequest("GET", "/test", nil)
-			router.ServeHTTP(w, req)
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			rec := httptest.NewRecorder()
+			e.ServeHTTP(rec, req)
 
-			assert.Equal(t, tt.expectedStatus, w.Code)
+			assert.Equal(t, tt.expectedStatus, rec.Code)
 
 			var response ErrorResponse
-			err := json.Unmarshal(w.Body.Bytes(), &response)
+			err := json.Unmarshal(rec.Body.Bytes(), &response)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedBody, response)
 		})
@@ -88,8 +89,6 @@ type TestStruct struct {
 }
 
 func TestValidationMiddleware(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
 	tests := []struct {
 		name           string
 		contentType    string
@@ -109,26 +108,24 @@ func TestValidationMiddleware(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router := gin.New()
-			router.Use(ValidationMiddleware())
+			e := echo.New()
+			e.Use(ValidationMiddleware())
 
-			router.POST("/test", func(c *gin.Context) {
-				c.Status(http.StatusOK)
+			e.POST("/test", func(c echo.Context) error {
+				return c.NoContent(http.StatusOK)
 			})
 
-			w := httptest.NewRecorder()
-			req := httptest.NewRequest("POST", "/test", bytes.NewBuffer([]byte("{}")))
+			req := httptest.NewRequest(http.MethodPost, "/test", bytes.NewBuffer([]byte("{}")))
 			req.Header.Set("Content-Type", tt.contentType)
-			router.ServeHTTP(w, req)
+			rec := httptest.NewRecorder()
+			e.ServeHTTP(rec, req)
 
-			assert.Equal(t, tt.expectedStatus, w.Code)
+			assert.Equal(t, tt.expectedStatus, rec.Code)
 		})
 	}
 }
 
 func TestRequestValidator(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
 	tests := []struct {
 		name           string
 		payload        interface{}
@@ -137,23 +134,23 @@ func TestRequestValidator(t *testing.T) {
 		{
 			name: "Valid Request",
 			payload: TestStruct{
-				Name:  "John Doe",
-				Email: "john@example.com",
+				Name:  "Super star",
+				Email: "superstar@example.com",
 			},
 			expectedStatus: http.StatusOK,
 		},
 		{
 			name: "Invalid Request - Missing Email",
 			payload: TestStruct{
-				Name: "John Doe",
+				Name: "Super star",
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name: "Invalid Request - Short Name",
 			payload: TestStruct{
-				Name:  "Jo",
-				Email: "john@example.com",
+				Name:  "Star",
+				Email: "superstar@example.com",
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
@@ -161,22 +158,27 @@ func TestRequestValidator(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router := gin.New()
-			router.Use(ErrorHandler())
+			e := echo.New()
+			e.Use(ErrorHandler())
 
-			router.POST("/test", RequestValidator(&TestStruct{}), func(c *gin.Context) {
-				validated := c.MustGet("validated").(*TestStruct)
-				assert.NotNil(t, validated)
-				c.Status(http.StatusOK)
+			e.POST("/test", func(c echo.Context) error {
+				var validated TestStruct
+				if err := c.Bind(&validated); err != nil {
+					return err
+				}
+				if err := c.Validate(&validated); err != nil {
+					return err
+				}
+				return c.NoContent(http.StatusOK)
 			})
 
 			body, _ := json.Marshal(tt.payload)
-			w := httptest.NewRecorder()
-			req := httptest.NewRequest("POST", "/test", bytes.NewBuffer(body))
+			req := httptest.NewRequest(http.MethodPost, "/test", bytes.NewBuffer(body))
 			req.Header.Set("Content-Type", "application/json")
-			router.ServeHTTP(w, req)
+			rec := httptest.NewRecorder()
+			e.ServeHTTP(rec, req)
 
-			assert.Equal(t, tt.expectedStatus, w.Code)
+			assert.Equal(t, tt.expectedStatus, rec.Code)
 		})
 	}
 }

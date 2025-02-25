@@ -27,8 +27,8 @@ type DatabaseConfig struct {
 	Password        string        `mapstructure:"DB_PASSWORD"`
 	DBName          string        `mapstructure:"DB_NAME"`
 	SSLMode         string        `mapstructure:"DB_SSLMODE"`
-	MaxOpenConns    int           `mapstructure:"DB_MAX_OPEN_CONNS"`
-	MaxIdleConns    int           `mapstructure:"DB_MAX_IDLE_CONNS"`
+	MaxOpenConns    int32         `mapstructure:"DB_MAX_OPEN_CONNS"`
+	MaxIdleConns    int32         `mapstructure:"DB_MAX_IDLE_CONNS"`
 	ConnMaxLifetime time.Duration `mapstructure:"DB_CONN_MAX_LIFETIME"`
 }
 
@@ -102,8 +102,8 @@ func LoadConfig() (*Config, error) {
 			Password:        viper.GetString("DB_PASSWORD"),
 			DBName:          viper.GetString("DB_NAME"),
 			SSLMode:         viper.GetString("DB_SSLMODE"),
-			MaxOpenConns:    viper.GetInt("DB_MAX_OPEN_CONNS"),
-			MaxIdleConns:    viper.GetInt("DB_MAX_IDLE_CONNS"),
+			MaxOpenConns:    viper.GetInt32("DB_MAX_OPEN_CONNS"),
+			MaxIdleConns:    viper.GetInt32("DB_MAX_IDLE_CONNS"),
 			ConnMaxLifetime: viper.GetDuration("DB_CONN_MAX_LIFETIME"),
 		},
 		Redis: RedisConfig{

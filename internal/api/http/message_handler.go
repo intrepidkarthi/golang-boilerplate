@@ -100,7 +100,7 @@ func (h *MessageHandler) ListMessages(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	messages, total, err := h.messageService.ListMessagesPaginated(c.Request().Context(), int32(req.Page), int32(req.PageSize))
+	messages, total, err := h.messageService.ListMessagesPaginated(c.Request().Context(), req.Page, req.PageSize)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
@@ -122,8 +122,8 @@ type UpdateMessageRequest struct {
 }
 
 type ListMessagesRequest struct {
-	Page     int `query:"page"`
-	PageSize int `query:"page_size"`
+	Page     uint32 `query:"page" validate:"gte=0"`
+	PageSize uint32 `query:"page_size" validate:"gt=0,lte=100"`
 }
 
 // UpdateMessage godoc
