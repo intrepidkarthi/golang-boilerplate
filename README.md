@@ -49,6 +49,56 @@ A production-grade Go microservices boilerplate with support for gRPC, REST, Kaf
 └── scripts/           # Utility scripts
 ```
 
+## 📚 API Documentation with Swagger
+
+### Installing Swagger Tools
+
+1. **Install Swag CLI**
+   ```bash
+   # Install swag CLI tool
+   go install github.com/swaggo/swag/cmd/swag@latest
+   
+   # Verify installation
+   ~/go/bin/swag --version
+   ```
+
+2. **Install Echo Swagger**
+   ```bash
+   # Install echo-swagger package
+   go get -u github.com/swaggo/echo-swagger
+   ```
+
+### Generating API Documentation
+
+1. **Add Swagger Annotations**
+   Add Swagger annotations to your handlers. Example:
+   ```go
+   // @Summary Create a new message
+   // @Description Create a new message with the provided content
+   // @Tags messages
+   // @Accept json
+   // @Produce json
+   // @Param message body CreateMessageRequest true "Message content"
+   // @Success 200 {object} models.Message
+   // @Router /messages [post]
+   ```
+
+2. **Generate Swagger Files**
+   ```bash
+   # Generate swagger documentation
+   ~/go/bin/swag init -g cmd/server/main.go
+   ```
+
+3. **View Documentation**
+   - Start the server: `go run cmd/server/main.go`
+   - Open your browser and navigate to: `http://localhost:3000/swagger/index.html`
+
+### Updating Documentation
+
+Whenever you make changes to your API annotations:
+1. Regenerate the documentation: `~/go/bin/swag init -g cmd/server/main.go`
+2. Restart the server to see the changes
+
 ## 🛠 Prerequisites
 
 Before you begin, ensure you have the following installed:

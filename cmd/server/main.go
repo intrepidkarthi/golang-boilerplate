@@ -1,3 +1,8 @@
+// @title Message Service API
+// @version 1.0
+// @description This is a RESTful API for managing messages
+// @host localhost:3000
+// @BasePath /api/v1
 package main
 
 import (
@@ -22,6 +27,9 @@ import (
 	"go.uber.org/zap"
 	grpc_server "google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+
+	_ "go-boilerplate/docs" // Import generated docs
+	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
 func main() {
@@ -106,6 +114,9 @@ func main() {
 		e.Use(echomiddleware.Logger())
 		e.Use(echomiddleware.Recover())
 		e.Use(echomiddleware.CORS())
+
+		// Swagger docs
+		e.GET("/swagger/*", echoSwagger.WrapHandler)
 
 		// API routes
 		v1 := e.Group("/api/v1")
